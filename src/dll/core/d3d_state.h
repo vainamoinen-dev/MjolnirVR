@@ -1,0 +1,108 @@
+// Save and restore of the D3D11 pipeline state the mod's own draws touch, used by vr.cpp
+// and menu.cpp around every draw made on the game's device context.
+#pragma once
+#include <d3d11.h>
+
+// Saves and restores the D3D11 pipeline state we touch. We are drawing with
+// the *game's* device context in the middle of its frame — if we left our
+// shaders/render targets bound, the game's next draw calls would go haywire.
+
+struct D3DStateBackup
+{
+    ID3D11RenderTargetView* rtvs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT]{};
+    ID3D11DepthStencilView* dsv = nullptr;
+    D3D11_VIEWPORT viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE]{};
+    UINT numViewports = 0;
+    ID3D11RasterizerState* rasterizer = nullptr;
+    ID3D11BlendState* blend = nullptr;
+    FLOAT blendFactor[4]{};
+    UINT sampleMask = 0;
+    ID3D11DepthStencilState* depthStencil = nullptr;
+    UINT stencilRef = 0;
+    ID3D11InputLayout* inputLayout = nullptr;
+    D3D11_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+    ID3D11VertexShader* vs = nullptr;
+    ID3D11PixelShader* ps = nullptr;
+    ID3D11GeometryShader* gs = nullptr;
+    ID3D11ShaderResourceView* psSrv0 = nullptr;
+    ID3D11ShaderResourceView* psSrv1 = nullptr; // slot 1: the scope window mask
+    ID3D11SamplerState* psSampler0 = nullptr;
+    ID3D11Buffer* psCb0 = nullptr; // our zoom passes bind PS constant buffer slot 0
+
+    void Capture(ID3D11DeviceContext* ctx)
+    {
+        ctx->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rtvs, &dsv);
+        numViewports = D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+        ctx->RSGetViewports(&numViewports, viewports);
+        ctx->RSGetState(&rasterizer);
+        ctx->OMGetBlendState(&blend, blendFactor, &sampleMask);
+        ctx->OMGetDepthStencilState(&depthStencil, &stencilRef);
+        ctx->IAGetInputLayout(&inputLayout);
+        ctx->IAGetPrimitiveTopology(&topology);
+        ctx->VSGetShader(&vs, nullptr, nullptr);
+        ctx->PSGetShader(&ps, nullptr, nullptr);
+        ctx->GSGetShader(&gs, nullptr, nullptr);
+        ctx->PSGetShaderResources(0, 1, &psSrv0);
+        ctx->PSGetShaderResources(1, 1, &psSrv1);
+        ctx->PSGetSamplers(0, 1, &psSampler0);
+        ctx->PSGetConstantBuffers(0, 1, &psCb0);
+    }
+
+    void Restore(ID3D11DeviceContext* ctx)
+    {
+        ctx->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rtvs, dsv);
+        if (numViewports)
+            ctx->RSSetViewports(numViewports, viewports);
+        ctx->RSSetState(rasterizer);
+        ctx->OMSetBlendState(blend, blendFactor, sampleMask);
+        ctx->OMSetDepthStencilState(depthStencil, stencilRef);
+        ctx->IASetInputLayout(inputLayout);
+        ctx->IASetPrimitiveTopology(topology);
+        ctx->VSSetShader(vs, nullptr, 0);
+        ctx->PSSetShader(ps, nullptr, 0);
+        ctx->GSSetShader(gs, nullptr, 0);
+        ctx->PSSetShaderResources(0, 1, &psSrv0);
+        ctx->PSSetShaderResources(1, 1, &psSrv1);
+        ctx->PSSetSamplers(0, 1, &psSampler0);
+        ctx->PSSetConstantBuffers(0, 1, &psCb0);
+        Release();
+    }
+
+    void Release()
+    {
+        auto rel = [](IUnknown* p)
+        {
+            if (p)
+                p->Release();
+        };
+        for (auto*& rtv : rtvs)
+        {
+            rel(rtv);
+            rtv = nullptr;
+        }
+        rel(dsv);
+        dsv = nullptr;
+        rel(rasterizer);
+        rasterizer = nullptr;
+        rel(blend);
+        blend = nullptr;
+        rel(depthStencil);
+        depthStencil = nullptr;
+        rel(inputLayout);
+        inputLayout = nullptr;
+        rel(vs);
+        vs = nullptr;
+        rel(ps);
+        ps = nullptr;
+        rel(gs);
+        gs = nullptr;
+        rel(psSrv0);
+        psSrv0 = nullptr;
+        rel(psSrv1);
+        psSrv1 = nullptr;
+        rel(psSampler0);
+        psSampler0 = nullptr;
+        rel(psCb0);
+        psCb0 = nullptr;
+    }
+};

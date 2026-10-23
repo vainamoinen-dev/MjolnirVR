@@ -1,0 +1,43 @@
+// CE native HUD render-target snapshot and the read/replace/restore calls (haloce_hud_target.cpp).
+// Used by haloce_hud.cpp, haloce_stereo_core.cpp and vr.cpp. The snapshot holds native-owned
+// identities only; nothing here AddRefs or Releases them.
+#pragma once
+#include <d3d11.h>
+#include <array>
+#include <cstdint>
+
+struct CeHudTargetSnapshot
+{
+    uintptr_t moduleBase{}, backend{};
+    ID3D11DeviceContext* context{};
+    uint32_t count{};
+    // Native-owned identities only. The adapter never AddRefs or Releases them.
+    ID3D11RenderTargetView* rtvs[4]{};
+    ID3D11DepthStencilView* dsv{};
+    std::array<uint8_t, 0x48> descriptor{};
+    uintptr_t wrappers[5]{}, surfaces[5]{}, resources[5]{};
+};
+enum class CeHudTargetRestoreResult : uint8_t
+{
+    Unchanged,
+    Changed,
+    Unavailable
+};
+// Cold caller verifies contract::hud_target and retains the module across use.
+// Render owner/title/generation validation remains the caller's responsibility.
+bool HaloCEHudTarget_Read(
+    uintptr_t moduleBase, ID3D11DeviceContext* expectedContext, CeHudTargetSnapshot& out) noexcept;
+// The natural callback clears D3D bindings before returning. Validate the
+// saved color source and native descriptor without requiring those cleared
+// bindings to remain live. Registry lifetime/revision stays with the caller.
+bool HaloCEHudTarget_CaptureSourceCurrent(const CeHudTargetSnapshot&) noexcept;
+CeHudTargetRestoreResult HaloCEHudTarget_Restore(const CeHudTargetSnapshot&) noexcept;
+// Replace only an exactly current native target intent through the verified
+// native binder. It updates both the backend cache and the D3D attachments.
+bool HaloCEHudTarget_Replace(const CeHudTargetSnapshot& expected, const std::array<uint8_t, 0x48>& descriptor,
+    CeHudTargetSnapshot& result) noexcept;
+// Cleanup may follow a failed readback after a successful native mutation.
+// Admit only the exact prepared descriptor and still-current saved color;
+// unrelated native target changes are never overwritten.
+bool HaloCEHudTarget_RestorePrepared(const CeHudTargetSnapshot& original,
+    const std::array<uint8_t, 0x48>& preparedDescriptor, CeHudTargetSnapshot& result) noexcept;

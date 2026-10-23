@@ -1,0 +1,10 @@
+// Resource script that embeds the compiled SMAA shaders; CMake fills in the generated
+// directory. IDs come from smaa_resource.h.
+#include "smaa_resource.h"
+
+IDR_SMAA_EDGES_VS        RCDATA "@HALOMCCVR_GENERATED_DIR@/smaa_edges_vs.cso"
+IDR_SMAA_WEIGHTS_VS      RCDATA "@HALOMCCVR_GENERATED_DIR@/smaa_weights_vs.cso"
+IDR_SMAA_NEIGHBORHOOD_VS RCDATA "@HALOMCCVR_GENERATED_DIR@/smaa_neighborhood_vs.cso"
+IDR_SMAA_EDGES_PS        RCDATA "@HALOMCCVR_GENERATED_DIR@/smaa_edges_ps.cso"
+IDR_SMAA_WEIGHTS_PS      RCDATA "@HALOMCCVR_GENERATED_DIR@/smaa_weights_ps.cso"
+IDR_SMAA_NEIGHBORHOOD_PS RCDATA "@HALOMCCVR_GENERATED_DIR@/smaa_neighborhood_ps.cso"

@@ -1,0 +1,10 @@
+# Files clang-format leaves alone. clang-format 19 matches each pattern against the path from this folder with
+# POSIX globbing: '*' never crosses a '/', and '**' is not supported, so each depth is listed.
+# Third-party sources keep their upstream bytes.
+third_party/*/*
+third_party/*/*/*
+# Generated tables are written by tools/ and checked by regenerate-and-compare; reformatting them would break that.
+src/*/*.generated.*
+src/*/*/*.generated.*
+src/*/*/*/*.generated.*
+src/*/*/*/*/*.generated.*

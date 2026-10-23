@@ -1,0 +1,35 @@
+// CE HUD layout interface (haloce_hud_layout.cpp): viewport/scissor rewriting for the native HUD
+// and the Anniversary per-eye HUD replay. Called by game.cpp, d3d11_hook.cpp, vr.cpp,
+// haloce_hud.cpp and haloce_stereo_core.cpp. When Prepare* returns false, the native values are submitted.
+#pragma once
+#include <d3d11.h>
+#include <cstddef>
+#include <cstdint>
+
+bool HaloCEHudLayout_Poll(uintptr_t base, size_t size, uint32_t generation, bool active) noexcept;
+void HaloCEHudLayout_SetObservationAvailable(bool available) noexcept;
+// Output arrays must hold D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE.
+// Always observe accepted native state; return true to submit transformed output.
+bool HaloCEHudLayout_PrepareViewports(ID3D11DeviceContext*, UINT, const D3D11_VIEWPORT*, D3D11_VIEWPORT*) noexcept;
+bool HaloCEHudLayout_PrepareScissors(ID3D11DeviceContext*, UINT, const D3D11_RECT*, D3D11_RECT*) noexcept;
+void HaloCEHudLayout_InvalidateState(ID3D11DeviceContext*) noexcept;
+// Bracket the complete native crosshair call, including stock fallback.
+void HaloCEHudLayout_Suspend() noexcept;
+void HaloCEHudLayout_Resume() noexcept;
+// During Anniversary replay this remains in authored (full-height) pixels.
+// Private reticle capture uses that raster and restores it through the observed
+// native setters, which apply the eye transform once. Do not pre-scale it.
+bool HaloCEHudLayout_CopyState(
+    ID3D11DeviceContext*, UINT* viewportCount, D3D11_VIEWPORT*, UINT* scissorCount, D3D11_RECT*) noexcept;
+void HaloCEHudLayout_BeginPrivateRaster() noexcept;
+void HaloCEHudLayout_EndPrivateRaster() noexcept;
+// The native Anniversary HUD is authored at desktop height. Map its gameplay
+// raster into one verified full- or half-height eye region without changing
+// the authored canvas or repeating the outer native callback.
+// Caller restores the native backend target stack after EndEyeReplay.
+// On rejection, cleanupVerified distinguishes an untouched/restored raster
+// from an attempted replay whose cleanup could not be verified. On success
+// it is false until the caller completes EndEyeReplay.
+bool HaloCEHudLayout_BeginEyeReplay(ID3D11DeviceContext*, UINT nativeWidth, UINT nativeHeight, UINT eyeWidth,
+    UINT eyeHeight, bool* cleanupVerified = nullptr, UINT outputTop = 0, bool clipToEye = false) noexcept;
+bool HaloCEHudLayout_EndEyeReplay() noexcept;

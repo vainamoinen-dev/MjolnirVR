@@ -1,0 +1,60 @@
+# Build output
+build/
+build-odst-private/
+out/
+bin/
+obj/
+dist/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.code-workspace
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Local-only files
+*.log
+local/
+/outside-tools/
+camscan_*.bin
+pause_scan/
+recovery-*/
+tools/__pycache__/
+tools/*.CT
+
+# Third-party source kept locally for reference (praydog/UEVR) — not ours to ship
+reference/
+
+# Python bytecode from the read-only Reach probe tools
+tools/reach-probes/__pycache__/
+tools/h4-probes/__pycache__/
+/Testing/
+
+# H3EK/H3ODSTEK tool.exe writes these into whatever directory it is run from
+gamestate.txt
+reports/
+
+tools/re/__pycache__/
+tools/re/renderdoc_offline/__pycache__/
+
+# Game-derived art (scope masks) lives outside the repo (D:/HaloCEVR/MCCVR/assets-local) and ships via packaging only
+assets/scope-masks/
+
+# AI-agent instruction files stay out of the public repo (2026-10-10)
+CLAUDE.md
+.claude/
+
+# Local release packaging (zips are published on GitHub Releases, not in git)
+/releases/

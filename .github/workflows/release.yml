@@ -1,0 +1,101 @@
+# Release packaging on GitHub's own runner, so every published file can be traced to a commit:
+# build the `release` preset, run the tests, package with tools/package.ps1, attach a build
+# provenance attestation to each file, and open a DRAFT release for the pushed tag.
+# A manual run (workflow_dispatch) does everything except the release: a dry run whose
+# packages are kept as a workflow artifact.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package label for a dry run (no release is created)'
+        required: false
+        default: 'dry-run'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  package:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Version label
+        id: label
+        shell: pwsh
+        run: |
+          $v = if ('${{ github.event_name }}' -eq 'push') { '${{ github.ref_name }}' } else { '${{ github.event.inputs.version }}' }
+          if ($v -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]*$') { throw "Unsafe version label: $v" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      # Optional: per-gun scope masks live in a separate repository. Without the key the
+      # package ships without them and the mod draws its circle window.
+      - name: Scope masks available?
+        id: masks
+        shell: pwsh
+        env:
+          KEY: ${{ secrets.ASSETS_DEPLOY_KEY }}
+        run: |
+          $has = if ($env:KEY) { 'true' } else { 'false' }
+          "has=$has" >> $env:GITHUB_OUTPUT
+      - name: Check out scope masks
+        if: steps.masks.outputs.has == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: vainamoinen-dev/MjolnirVR-assets
+          ssh-key: ${{ secrets.ASSETS_DEPLOY_KEY }}
+          path: out/assets-local
+
+      - name: Configure
+        run: >
+          cmake --preset release
+          -DFETCHCONTENT_SOURCE_DIR_OPENXR=
+          -DFETCHCONTENT_SOURCE_DIR_MINHOOK=
+          -DFETCHCONTENT_SOURCE_DIR_IMGUI=
+      - name: Build
+        run: cmake --build --preset release --parallel
+      - name: Test
+        run: ctest --test-dir out/build/release -C Release --output-on-failure
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $p = @{ NoBuild = $true; Kind = 'PUBLIC_RELEASE'; Version = '${{ steps.label.outputs.version }}'; OutDir = 'out/packages' }
+          if ('${{ steps.masks.outputs.has }}' -eq 'true') { $p.AssetsLocal = 'out/assets-local' }
+          ./tools/package.ps1 @p
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            out/packages/*.zip
+            out/packages/HaloMCCVRLauncher.exe
+            out/packages/HaloMCCVR.dll
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MjolnirVR-${{ steps.label.outputs.version }}
+          path: out/packages/
+
+      - name: Draft release
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.label.outputs.version }}'
+          $notes = Get-Content -Raw out/package-stage/$v/RELEASE-NOTES.md
+          $notes += "`n`n## Verify`n`nSHA-256 of every file is in SHA256SUMS.txt. Each file carries a GitHub build provenance attestation: ``gh attestation verify <file> -R ${{ github.repository }}``.`n"
+          gh release create $v --draft --title "MjolnirVR $v" --notes $notes `
+            "out/packages/MjolnirVR-$v-Build.zip" "out/packages/MjolnirVR-$v-Manual.zip" "out/packages/MjolnirVR-$v-Source.zip" out/packages/SHA256SUMS.txt

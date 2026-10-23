@@ -1,0 +1,5 @@
+// Launcher resource script: the application icon. Built into the launcher executable by
+// CMakeLists.txt.
+#include <winuser.h>
+// Application icon: shown in Explorer and on the desktop / Start-menu shortcuts.
+1 ICON "..\\..\\assets\\branding\\mjolnirvr.ico"

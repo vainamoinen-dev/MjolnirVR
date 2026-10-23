@@ -1,0 +1,48 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "release",
+      "displayName": "Halo MCC VR cumulative Release",
+      "description": "x64 cumulative build: accepted titles plus Halo 4 and Halo 2 C-H2-9 classic stereo + 6DOF with the live-renderer gate",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/out/build/release",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "FETCHCONTENT_BASE_DIR": "${sourceDir}/out/deps",
+        "FETCHCONTENT_SOURCE_DIR_OPENXR": "${sourceDir}/out/deps/openxr-src",
+        "FETCHCONTENT_SOURCE_DIR_MINHOOK": "${sourceDir}/out/deps/minhook-src",
+        "FETCHCONTENT_SOURCE_DIR_IMGUI": "${sourceDir}/out/deps/imgui-src",
+        "HALOMCCVR_EXPERIMENTAL_ODST_BRINGUP": "ON",
+        "HALOMCCVR_EXPERIMENTAL_HALO2_COLD_OBSERVATION": "ON",
+        "HALOMCCVR_EXPERIMENTAL_HALO2_TEMPORAL_STEREO": "OFF",
+        "HALOMCCVR_HALO2_STEREO6DOF": "ON",
+        "HALOMCCVR_HALO2_OBSERVER_6DOF": "ON",
+        "HALOMCCVR_HALO2_RENDER_PROBE": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+# MjolnirVR source style, read from the code (build 31, E4a). Pinned: clang-format 19.1.5, the version VS 2022 Build
+# Tools ship (VC/Tools/Llvm/x64/bin); another version may lay the same code out differently.
+# Layout only: no option here may add, remove or reorder a token (no include sorting, no comment reflow,
+# no brace insertion/removal, no qualifier moves, no newline added at end of file).
+Language: Cpp
+BasedOnStyle: Microsoft
+Standard: c++20
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Allman
+NamespaceIndentation: All
+AccessModifierOffset: -4
+IndentCaseLabels: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: All
+AllowShortCaseLabelsOnASingleLine: false
+BreakTemplateDeclarations: Yes
+AlignAfterOpenBracket: DontAlign
+ContinuationIndentWidth: 4
+BinPackArguments: true
+BinPackParameters: true
+FixNamespaceComments: false
+ShortNamespaceLines: 0
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+SortIncludes: Never
+SortUsingDeclarations: Never
+IncludeBlocks: Preserve
+ReflowComments: false
+BreakStringLiterals: false
+InsertBraces: false
+RemoveBracesLLVM: false
+RemoveSemicolon: false
+RemoveParentheses: Leave
+QualifierAlignment: Leave
+InsertNewlineAtEOF: false
+InsertTrailingCommas: None
+IntegerLiteralSeparator:
+  Binary: 0
+  Decimal: 0
+  Hex: 0

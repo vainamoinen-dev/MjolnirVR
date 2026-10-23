@@ -1,0 +1,159 @@
+// Halo MCC VR D3D11 integration for official SMAA 1x.
+// Upstream: https://github.com/iryoku/smaa
+// Pinned source commit: 71c806a838bdd7d517df19192a20f0c61b3ca29d
+
+Texture2D smaaTex0 : register(t0);
+Texture2D smaaTex1 : register(t1);
+Texture2D smaaTex2 : register(t2);
+SamplerState smaaLinear : register(s0);
+SamplerState smaaPoint : register(s1);
+
+cbuffer IqParams : register(b0)
+{
+    float2 srcSize;
+    float2 dstSize;
+    float  sharpness;
+    float  srcIsSrgb;
+    float  outPerceptual;
+    float  aaStrength;
+};
+
+// Supply explicit D3D11 bindings while retaining the official algorithm,
+// presets, searches, area lookup, diagonal detection, and corner handling.
+#define SMAA_CUSTOM_SL 1
+#define SMAA_THRESHOLD 0.05
+#define SMAA_MAX_SEARCH_STEPS 32
+#define SMAA_MAX_SEARCH_STEPS_DIAG 16
+#define SMAA_CORNER_ROUNDING 25
+#define SMAA_INCLUDE_VS 1
+#define SMAA_INCLUDE_PS 1
+#define SMAA_RT_METRICS float4(1.0 / srcSize.x, 1.0 / srcSize.y, srcSize.x, srcSize.y)
+#define SMAATexture2D(tex) Texture2D tex
+#define SMAATexturePass2D(tex) tex
+#define SMAASampleLevelZero(tex, coord) tex.SampleLevel(smaaLinear, coord, 0)
+#define SMAASampleLevelZeroPoint(tex, coord) tex.SampleLevel(smaaPoint, coord, 0)
+#define SMAASampleLevelZeroOffset(tex, coord, offset) tex.SampleLevel(smaaLinear, coord, 0, offset)
+#define SMAASample(tex, coord) tex.Sample(smaaLinear, coord)
+#define SMAASamplePoint(tex, coord) tex.Sample(smaaPoint, coord)
+#define SMAASampleOffset(tex, coord, offset) tex.Sample(smaaLinear, coord, offset)
+#define SMAA_FLATTEN [flatten]
+#define SMAA_BRANCH [branch]
+
+@HALOMCCVR_SMAA_UPSTREAM_SOURCE@
+
+void SmaaFullscreenVertex(uint id, out float4 position, out float2 texcoord)
+{
+    texcoord = float2((id << 1) & 2, id & 2);
+    position = float4(texcoord * float2(2, -2) + float2(-1, 1), 0, 1);
+}
+
+void vs_smaa_edges(
+    uint id : SV_VertexID,
+    out float4 position : SV_Position,
+    out float2 texcoord : TEXCOORD0,
+    out float4 offset[3] : TEXCOORD1)
+{
+    SmaaFullscreenVertex(id, position, texcoord);
+    SMAAEdgeDetectionVS(texcoord, offset);
+}
+
+void vs_smaa_weights(
+    uint id : SV_VertexID,
+    out float4 position : SV_Position,
+    out float2 texcoord : TEXCOORD0,
+    out float2 pixcoord : TEXCOORD1,
+    out float4 offset[3] : TEXCOORD2)
+{
+    SmaaFullscreenVertex(id, position, texcoord);
+    SMAABlendingWeightCalculationVS(texcoord, pixcoord, offset);
+}
+
+void vs_smaa_neighborhood(
+    uint id : SV_VertexID,
+    out float4 position : SV_Position,
+    out float2 texcoord : TEXCOORD0,
+    out float4 offset : TEXCOORD1)
+{
+    SmaaFullscreenVertex(id, position, texcoord);
+    SMAANeighborhoodBlendingVS(texcoord, offset);
+}
+
+// Official color edge detection with its discard optimization changed to an
+// explicit zero. We do not own the game's stencil buffer, and a zero write
+// prevents stale edges without clearing a 4K eye-sized render target.
+float2 SmaaColorEdgeDetectionNoDiscard(float2 texcoord, float4 offset[3])
+{
+    float3 C = SMAASamplePoint(smaaTex0, texcoord).rgb;
+    float3 Cleft = SMAASamplePoint(smaaTex0, offset[0].xy).rgb;
+    float3 t = abs(C - Cleft);
+    float4 delta;
+    delta.x = max(max(t.r, t.g), t.b);
+
+    float3 Ctop = SMAASamplePoint(smaaTex0, offset[0].zw).rgb;
+    t = abs(C - Ctop);
+    delta.y = max(max(t.r, t.g), t.b);
+
+    float2 edges = step(float2(SMAA_THRESHOLD, SMAA_THRESHOLD), delta.xy);
+    if (dot(edges, float2(1.0, 1.0)) == 0.0)
+        return float2(0.0, 0.0);
+
+    float3 Cright = SMAASamplePoint(smaaTex0, offset[1].xy).rgb;
+    t = abs(C - Cright);
+    delta.z = max(max(t.r, t.g), t.b);
+
+    float3 Cbottom = SMAASamplePoint(smaaTex0, offset[1].zw).rgb;
+    t = abs(C - Cbottom);
+    delta.w = max(max(t.r, t.g), t.b);
+    float2 maxDelta = max(delta.xy, delta.zw);
+
+    float3 Cleftleft = SMAASamplePoint(smaaTex0, offset[2].xy).rgb;
+    t = abs(C - Cleftleft);
+    delta.z = max(max(t.r, t.g), t.b);
+
+    float3 Ctoptop = SMAASamplePoint(smaaTex0, offset[2].zw).rgb;
+    t = abs(C - Ctoptop);
+    delta.w = max(max(t.r, t.g), t.b);
+    maxDelta = max(maxDelta, delta.zw);
+    float finalDelta = max(maxDelta.x, maxDelta.y);
+    edges *= step(finalDelta,
+                  SMAA_LOCAL_CONTRAST_ADAPTATION_FACTOR * delta.xy);
+    return edges;
+}
+
+float4 ps_smaa_edges(
+    float4 position : SV_Position,
+    float2 texcoord : TEXCOORD0,
+    float4 offset[3] : TEXCOORD1) : SV_Target
+{
+    return float4(SmaaColorEdgeDetectionNoDiscard(texcoord, offset), 0.0, 0.0);
+}
+
+float4 ps_smaa_weights(
+    float4 position : SV_Position,
+    float2 texcoord : TEXCOORD0,
+    float2 pixcoord : TEXCOORD1,
+    float4 offset[3] : TEXCOORD2) : SV_Target
+{
+    return SMAABlendingWeightCalculationPS(
+        texcoord, pixcoord, offset, smaaTex0, smaaTex1, smaaTex2,
+        float4(0.0, 0.0, 0.0, 0.0));
+}
+
+float3 SmaaToLinear(float3 c)
+{
+    return float3(
+        c.r <= 0.04045 ? c.r / 12.92 : pow(abs((c.r + 0.055) / 1.055), 2.4),
+        c.g <= 0.04045 ? c.g / 12.92 : pow(abs((c.g + 0.055) / 1.055), 2.4),
+        c.b <= 0.04045 ? c.b / 12.92 : pow(abs((c.b + 0.055) / 1.055), 2.4));
+}
+
+float4 ps_smaa_neighborhood(
+    float4 position : SV_Position,
+    float2 texcoord : TEXCOORD0,
+    float4 offset : TEXCOORD1) : SV_Target
+{
+    float4 color =
+        SMAANeighborhoodBlendingPS(texcoord, offset, smaaTex0, smaaTex1);
+    color.rgb = outPerceptual > 0.5 ? color.rgb : SmaaToLinear(color.rgb);
+    return color;
+}
