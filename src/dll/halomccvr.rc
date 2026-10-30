@@ -1,0 +1,7 @@
+// DLL resource script: the version information. Built into HaloMCCVR.dll by
+// CMakeLists.txt (the SMAA shaders are in the generated smaa_resources.rc).
+#define VERSION_FILE_DESCRIPTION "MjolnirVR VR mod for Halo: The Master Chief Collection"
+#define VERSION_INTERNAL_NAME "HaloMCCVR"
+#define VERSION_ORIGINAL_FILENAME "HaloMCCVR.dll"
+#define VERSION_FILE_TYPE VFT_DLL
+#include "../common/version_info.rc2"

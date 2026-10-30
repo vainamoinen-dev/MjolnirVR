@@ -1,5 +1,11 @@
-// Launcher resource script: the application icon. Built into the launcher executable by
-// CMakeLists.txt.
+// Launcher resource script: the application icon and the version information. Built into
+// the launcher executable by CMakeLists.txt.
 #include <winuser.h>
 // Application icon: shown in Explorer and on the desktop / Start-menu shortcuts.
 1 ICON "..\\..\\assets\\branding\\mjolnirvr.ico"
+
+#define VERSION_FILE_DESCRIPTION "MjolnirVR launcher"
+#define VERSION_INTERNAL_NAME "HaloMCCVRLauncher"
+#define VERSION_ORIGINAL_FILENAME "HaloMCCVRLauncher.exe"
+#define VERSION_FILE_TYPE VFT_APP
+#include "../common/version_info.rc2"

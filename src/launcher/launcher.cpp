@@ -15,6 +15,7 @@
 #include <commctrl.h>
 #include <shellapi.h>
 #include "installer.h"
+#include "mcc_settings.h"
 #include "../common/manual_vr_recovery.h"
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(linker,                                                                                                \
@@ -367,7 +368,8 @@ static float ReadResolutionScale(const std::wstring& path)
 // now writes them just before the game starts and puts the player's own
 // values back when the game exits, so flat play is untouched.
 //
-// Only the keys below are touched. Their pre-launch values are saved to
+// Only the keys in mcc_settings.h are touched. Their pre-launch values, and the
+// resolution and display-mode keys MCC rewrites itself in VR, are saved to
 // mcc_flat_settings.txt beside the launcher before anything is written, so a
 // launcher that is killed before MCC exits restores on the next launch.
 // The controller layout is left alone: the mod's VR action mapping reads
@@ -375,32 +377,6 @@ static float ReadResolutionScale(const std::wstring& path)
 // did force the layout still restores it, since restore replays the snapshot.
 // halomccvr.cfg: mcc_vr_settings = 0 (off), 1 (apply + restore, default),
 // 2 (apply and keep).
-struct MccPresetKey
-{
-    const char* key;
-    const char* vrValue;
-};
-static const MccPresetKey kMccVrPreset[] = {
-    {"FOVSetting[0]", "120"},
-    {"FOVSetting[1]", "120"},
-    {"FOVSetting[2]", "120"},
-    {"FOVSetting[3]", "120"},
-    {"FOVSetting[4]", "120"},
-    {"FOVSetting[5]", "120"},
-    {"FOVSetting[6]", "120"},
-    {"VehicleFOVSetting[0]", "120"},
-    {"VehicleFOVSetting[1]", "120"},
-    {"VehicleFOVSetting[2]", "120"},
-    {"VehicleFOVSetting[3]", "120"},
-    {"VehicleFOVSetting[4]", "120"},
-    {"VehicleFOVSetting[5]", "120"},
-    {"VehicleFOVSetting[6]", "120"},
-    {"bUseVSync", "False"},
-    // Unlimited: the headset's own refresh paces every title in VR (the mod
-    // also lifts Reach's in-game limit; headset feedback, 2026-10-09).
-    {"FrameRateLimit", "0.000000"},
-};
-
 static int ReadMccVrSettingsMode(const std::wstring& path)
 {
     int mode = 1;
@@ -420,154 +396,12 @@ static int ReadMccVrSettingsMode(const std::wstring& path)
     return mode;
 }
 
-static bool ReadWholeFile(const std::wstring& path, std::string& out)
-{
-    FILE* f = nullptr;
-    _wfopen_s(&f, path.c_str(), L"rb");
-    if (!f)
-        return false;
-    out.clear();
-    char buf[65536];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
-        out.append(buf, n);
-    fclose(f);
-    return true;
-}
-
-// Write via a temp file + replace so MCC never sees a half-written file.
-static bool WriteWholeFile(const std::wstring& path, const std::string& data)
-{
-    const std::wstring tmp = path + L".vrtmp";
-    FILE* f = nullptr;
-    _wfopen_s(&f, tmp.c_str(), L"wb");
-    if (!f)
-        return false;
-    const bool ok = fwrite(data.data(), 1, data.size(), f) == data.size();
-    fclose(f);
-    if (!ok || !MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING))
-    {
-        DeleteFileW(tmp.c_str());
-        return false;
-    }
-    return true;
-}
-
-// Line offsets of "key=" (start of value, end of value excluding CR/LF).
-static bool FindIniValue(const std::string& text, const char* key, size_t& valueBegin, size_t& valueEnd)
-{
-    const std::string needle = std::string(key) + "=";
-    size_t pos = 0;
-    while ((pos = text.find(needle, pos)) != std::string::npos)
-    {
-        if (pos == 0 || text[pos - 1] == '\n')
-        {
-            valueBegin = pos + needle.size();
-            valueEnd = text.find_first_of("\r\n", valueBegin);
-            if (valueEnd == std::string::npos)
-                valueEnd = text.size();
-            return true;
-        }
-        pos += needle.size();
-    }
-    return false;
-}
-
 static std::wstring MccUserSettingsPath()
 {
     wchar_t profile[MAX_PATH];
     if (!GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH))
         return {};
     return std::wstring(profile) + L"\\AppData\\LocalLow\\MCC\\Saved\\Config\\WindowsNoEditor\\GameUserSettings.ini";
-}
-
-// Puts the saved flat values back. Returns true when nothing is left to restore.
-static bool RestoreMccFlatSettings(const std::wstring& iniPath, const std::wstring& snapshotPath)
-{
-    std::string snap, ini;
-    if (!ReadWholeFile(snapshotPath, snap))
-        return true;
-    if (!ReadWholeFile(iniPath, ini))
-    {
-        LauncherLog("MCC settings: cannot read %ls to restore; keeping snapshot", iniPath.c_str());
-        return false;
-    }
-    int restored = 0;
-    size_t lineStart = 0;
-    while (lineStart < snap.size())
-    {
-        size_t lineEnd = snap.find('\n', lineStart);
-        if (lineEnd == std::string::npos)
-            lineEnd = snap.size();
-        std::string line = snap.substr(lineStart, lineEnd - lineStart);
-        lineStart = lineEnd + 1;
-        if (!line.empty() && line.back() == '\r')
-            line.pop_back();
-        const size_t eq = line.find('=');
-        if (eq == std::string::npos)
-            continue;
-        size_t b, e;
-        if (FindIniValue(ini, line.substr(0, eq).c_str(), b, e))
-        {
-            ini.replace(b, e - b, line.substr(eq + 1));
-            ++restored;
-        }
-    }
-    if (!WriteWholeFile(iniPath, ini))
-    {
-        LauncherLog("MCC settings: restore write FAILED; keeping snapshot");
-        return false;
-    }
-    DeleteFileW(snapshotPath.c_str());
-    LauncherLog("MCC settings: restored %d flat-play values", restored);
-    return true;
-}
-
-static void ApplyMccVrSettings(const std::wstring& iniPath, const std::wstring& snapshotPath, bool saveSnapshot)
-{
-    std::string ini;
-    if (!ReadWholeFile(iniPath, ini))
-    {
-        LauncherLog("MCC settings: %ls not found (first MCC run?); preset skipped", iniPath.c_str());
-        return;
-    }
-    // A snapshot still on disk means the last session never restored (launcher
-    // killed, PC crashed). It holds the real flat values, so keep it as is.
-    const bool keepOldSnapshot = !saveSnapshot || FileExists(snapshotPath);
-    std::string snapshot;
-    int changed = 0;
-    for (const MccPresetKey& k : kMccVrPreset)
-    {
-        size_t b, e;
-        if (!FindIniValue(ini, k.key, b, e))
-            continue;
-        snapshot += std::string(k.key) + "=" + ini.substr(b, e - b) + "\r\n";
-        if (ini.compare(b, e - b, k.vrValue) != 0)
-        {
-            ini.replace(b, e - b, k.vrValue);
-            ++changed;
-        }
-    }
-    if (!keepOldSnapshot)
-    {
-        FILE* f = nullptr;
-        _wfopen_s(&f, snapshotPath.c_str(), L"wb");
-        if (!f)
-        {
-            LauncherLog("MCC settings: cannot save flat snapshot; preset skipped");
-            return;
-        }
-        fwrite(snapshot.data(), 1, snapshot.size(), f);
-        fclose(f);
-    }
-    if (changed && !WriteWholeFile(iniPath, ini))
-    {
-        LauncherLog("MCC settings: preset write FAILED");
-        return;
-    }
-    LauncherLog("MCC settings: VR preset applied (%d values changed; FOV 120 in every title, "
-                "V-Sync off, 120 fps cap)%s",
-        changed, keepOldSnapshot ? "; earlier unrestored snapshot kept" : "");
 }
 
 static int ScaleEven(int base, float scale)
@@ -792,14 +626,14 @@ static int LaunchInstalledMod(const std::wstring& dir)
     const std::wstring mccIni = MccUserSettingsPath();
     const std::wstring flatSnapshot = dir + L"\\mcc_flat_settings.txt";
     if (mccSettingsMode != 0 && !mccIni.empty())
-        ApplyMccVrSettings(mccIni, flatSnapshot, mccSettingsMode == 1);
+        mcc_settings::ApplyVrSettings(mccIni, flatSnapshot, mccSettingsMode == 1, LauncherLog);
     else
         LauncherLog("MCC settings: VR preset off (mcc_vr_settings = 0)");
     // Every failed launch hands the player's flat settings straight back.
     auto restoreFlat = [&]()
     {
         if (mccSettingsMode == 1 && !mccIni.empty())
-            RestoreMccFlatSettings(mccIni, flatSnapshot);
+            mcc_settings::RestoreFlatSettings(mccIni, flatSnapshot, LauncherLog);
     };
 
     bool injected = false;
@@ -990,7 +824,7 @@ static int LaunchInstalledMod(const std::wstring& dir)
         LauncherLog("MCC settings: waiting for the game to exit to restore flat settings");
         WaitForSingleObject(pi.hProcess, INFINITE);
         Sleep(1000);
-        RestoreMccFlatSettings(mccIni, flatSnapshot);
+        mcc_settings::RestoreFlatSettings(mccIni, flatSnapshot, LauncherLog);
     }
     CloseHandle(pi.hProcess);
     return 0;

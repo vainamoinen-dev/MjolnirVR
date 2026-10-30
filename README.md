@@ -17,11 +17,11 @@ You aim and hold guns with your real hands, use two hands on a gun for steadier 
 
 ## Where this stands
 
-Status as of 16 October 2026.
+Status as of 30 October 2026.
 
 - **All six campaigns start and play in VR** in first person with tracked hands. Reach, Halo 3, ODST and Halo CE have had the most headset time.
 - **Zoom works in every game, but needs polish.** Each gun's scope lens is placed on its real scope glass using measurements from the official modding kits; the picture does not fit the glass perfectly on every gun yet, and Reach's scope picture still renders incorrectly.
-- **The current code is in headset testing.** The newest public release (test-16b, 10 October) is older than this code; the next release follows that test.
+- **Releases are built from tags.** Each release on the Releases page is the code at that tag, built on GitHub; the Install section says what lands where.
 - **What has been proven in a headset** versus only by the automated test rig is listed below. The rig is a fake OpenXR headset with fake hands that plays the game and checks results, so "rig only" means it works by the numbers but nobody has felt it yet.
 
 | Feature | Status |
@@ -107,6 +107,9 @@ With that layout, a feature built once applies to all six games by filling in th
 - **Reach looks grainy.** The cause is understood (Reach's lost temporal anti-aliasing plus sharpening). Sharpening is off by default and Reach defaults to FXAA at 1.30x render scale, with one-click alternatives under F1 > Picture. See `docs/REACH-GRAIN.md`.
 - **Halo CE vehicles:** the driver seat position was recently corrected but is not yet proven in a headset. Resuming a save while seated is unreliable.
 - **Seated resume (Halo 2 and others):** if you load a save made inside a vehicle, you may start outside first-person seat mode. Leave and re-enter the seat.
+- **Only one headset is tested.** Development and testing use a Quest 3 with Touch controllers. Other OpenXR headsets and controllers load the standard interaction profiles but have not been tried.
+- **Co-op and multiplayer are untested.** The mod is built and tested against the campaigns.
+- **No body.** The games draw arms only while a weapon is held, so an empty hand is invisible.
 - **Security software** may warn about the launcher and DLL: the mod injects a DLL into MCC and runs it without anti-cheat. The source is here; build it yourself if you prefer.
 
 ## Licences

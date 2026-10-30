@@ -77,11 +77,13 @@ set(HALOMCCVR_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${HALOMCCVR_GENERATED_DIR}")
 set(HALOMCCVR_BUILD_COMMIT_HEADER "${HALOMCCVR_GENERATED_DIR}/halomccvr_build_commit.h")
 set(HALOMCCVR_BUILD_STAMP_HEADER "${HALOMCCVR_GENERATED_DIR}/halomccvr_build_stamp.h")
+# The VERSIONINFO numbers for the DLL and launcher resource scripts (git describe).
+set(HALOMCCVR_VERSION_HEADER "${HALOMCCVR_GENERATED_DIR}/halomccvr_version.h")
 add_custom_target(halomccvr_git_version ALL
     COMMAND "${CMAKE_COMMAND}" "-DSRC=${CMAKE_CURRENT_SOURCE_DIR}" "-DOUT=${HALOMCCVR_BUILD_COMMIT_HEADER}"
-        "-DSTAMP=${HALOMCCVR_BUILD_STAMP_HEADER}"
+        "-DSTAMP=${HALOMCCVR_BUILD_STAMP_HEADER}" "-DVERSION=${HALOMCCVR_VERSION_HEADER}"
         "-DGIT=${GIT_EXECUTABLE}" -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GitVersion.cmake"
-    BYPRODUCTS "${HALOMCCVR_BUILD_COMMIT_HEADER}" "${HALOMCCVR_BUILD_STAMP_HEADER}"
+    BYPRODUCTS "${HALOMCCVR_BUILD_COMMIT_HEADER}" "${HALOMCCVR_BUILD_STAMP_HEADER}" "${HALOMCCVR_VERSION_HEADER}"
     COMMENT "Stamping the source commit"
     VERBATIM)
 include(cmake/MenuAssets.cmake)
@@ -163,6 +165,7 @@ target_link_libraries(menu_style_preview PRIVATE imgui_lib d3d11 dxgi d3dcompile
 
 add_library(mjolnirvr SHARED
     ${HALOMCCVR_GENERATED_DIR}/smaa_resources.rc
+    src/dll/halomccvr.rc
     src/common/log.cpp
     src/common/config.cpp
     src/common/input_logic.cpp
@@ -281,9 +284,12 @@ target_link_libraries(mjolnirvr PRIVATE bcrypt)
 include(cmake/Dlss.cmake)
 
 add_executable(mjolnirvr_launcher WIN32 src/launcher/launcher.cpp
-    src/launcher/installer.cpp src/launcher/menu.cpp src/launcher/launcher.rc)
+    src/launcher/installer.cpp src/launcher/menu.cpp src/launcher/mcc_settings.cpp src/launcher/launcher.rc)
 set_target_properties(mjolnirvr_launcher PROPERTIES
     OUTPUT_NAME "HaloMCCVRLauncher")
+# launcher.rc reads the generated version header.
+target_include_directories(mjolnirvr_launcher PRIVATE "${HALOMCCVR_GENERATED_DIR}")
+add_dependencies(mjolnirvr_launcher halomccvr_git_version)
 target_compile_definitions(mjolnirvr_launcher PRIVATE
     UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
 # IApplicationActivationManager: the Microsoft Store edition is a packaged app
@@ -358,6 +364,9 @@ if(BUILD_TESTING)
     target_compile_definitions(halomccvr_installer_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
     target_link_libraries(halomccvr_installer_tests PRIVATE bcrypt advapi32)
     add_test(NAME halomccvr_installer_tests COMMAND halomccvr_installer_tests)
+    add_executable(halomccvr_mcc_settings_tests tests/mcc_settings_tests.cpp src/launcher/mcc_settings.cpp)
+    target_compile_definitions(halomccvr_mcc_settings_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+    add_test(NAME halomccvr_mcc_settings_tests COMMAND halomccvr_mcc_settings_tests)
     add_executable(halomccvr_vr_mapping_tests tests/vr_action_mapping_tests.cpp src/common/config.cpp src/common/log.cpp src/common/scope_logic.cpp)
     target_compile_definitions(halomccvr_vr_mapping_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
     add_test(NAME halomccvr_vr_mapping_tests COMMAND halomccvr_vr_mapping_tests)

@@ -19,7 +19,7 @@ recorder writes a local file next to the mod and nothing reads it but you.
 | Settings | `Halo_MCC_VR\halomccvr.cfg`, rewritten when you save in the F1 menu. An old `halo3xr.cfg` is imported once. | While playing |
 | Logs | `Halo_MCC_VR\HaloMCCVR.log` (and `.log.prev`), `HaloMCCVR-native-faults.log`, `HaloMCCVRLauncher.log` | While playing |
 | Telemetry (local) | `Halo_MCC_VR\HaloMCCVR-Telemetry.jsonl` | Only after you press Start on the F1 menu's Telemetry Recorder page |
-| MCC's own settings | `%USERPROFILE%\AppData\LocalLow\MCC\Saved\Config\WindowsNoEditor\GameUserSettings.ini`: the launcher sets FOV 120 for every title, V-Sync off and a 120 fps cap for the VR session. It first saves your old values to `Halo_MCC_VR\mcc_flat_settings.txt` and puts them back when the game closes. Set `mcc_vr_settings = 0` in `halomccvr.cfg` to leave the file alone. | Every launch and exit |
+| MCC's own settings | `%USERPROFILE%\AppData\LocalLow\MCC\Saved\Config\WindowsNoEditor\GameUserSettings.ini`: the launcher sets FOV 120 for every title, V-Sync off and no frame cap for the VR session. It first saves your old values, and your resolution and display mode (MCC changes those itself in VR), to `Halo_MCC_VR\mcc_flat_settings.txt`, puts them back when the game closes and checks they came back. Set `mcc_vr_settings = 0` in `halomccvr.cfg` to leave the file alone. | Every launch and exit |
 
 No game file is replaced. No file is written anywhere else: not Program
 Files outside the MCC folder, not Windows, not your Documents.
