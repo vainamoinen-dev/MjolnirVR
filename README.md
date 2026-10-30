@@ -45,7 +45,7 @@ Status as of 30 October 2026.
 
 Three ways. Each one ends with a `Halo_MCC_VR` folder inside your MCC folder, with the mod and the MjolnirVR launcher in it. Nothing else is written to your PC; `docs/WHAT-IT-TOUCHES.md` lists every file, folder and setting the mod reads or writes.
 
-1. **Launcher package.** Download `MjolnirVR-<version>-Build.zip` from the Releases page, extract it anywhere, run `HaloMCCVRLauncher.exe` and click **Install VR mod**. It finds your MCC folder (Steam or Xbox app) or lets you pick it, checks every file against the package manifest, backs up a previous install, and keeps your settings file. If MCC lives under `Program Files`, run the launcher as administrator for this step only.
+1. **Launcher package.** Download `MjolnirVR-<version>-Build.zip` from the Releases page, extract it to an ordinary folder (the installer refuses to run from a junction or symbolic link), run `HaloMCCVRLauncher.exe` and click **Install VR mod**. It finds your MCC folder (Steam or Xbox app) or lets you pick it, checks every file against the package manifest, backs up a previous install, and keeps your settings file. If MCC lives under `Program Files`, run the launcher as administrator for this step only.
 2. **By hand.** Download `MjolnirVR-<version>-Manual.zip` and copy its `Halo_MCC_VR` folder into your base MCC folder (for example `C:\Program Files (x86)\Steam\steamapps\common\Halo The Master Chief Collection`, not `Binaries\Win64`).
 3. **From source.** Clone this repository and follow `BUILDING.md`: three commands build and test it, and `tools/package.ps1` produces the same two zips as a release. Then use either way above with your own package.
 
